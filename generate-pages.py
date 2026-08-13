@@ -86,6 +86,14 @@ def embedded_form_fields(soup):
             fields.append((label,"number" if name in ("quantity","num_pages","num_inner_pages_in_black") else "text",[],input_tag.get("value") or ""))
     return fields
 
+def embedded_calculators(soup):
+    urls=[]
+    for frame in soup.find_all("iframe",src=True):
+        src=urljoin(ROOT,frame["src"])
+        if urlparse(src).netloc in ("www.catfordprint.co.uk","catfordprint.co.uk") and "/ncr/" in urlparse(src).path:
+            urls.append(src)
+    return urls
+
 def extract_lines(soup,title):
     for tag in soup(["script","style","noscript","iframe","svg"]): tag.decompose()
     lines=[]
@@ -102,13 +110,13 @@ def logo():
 
 def shell(title,kicker,content,description=""):
     desc=description or f"{title} from Catford Print Centre."
-    return f'''<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="{html.escape(desc[:155],quote=True)}"><title>{html.escape(title)} | Catford Print Centre</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="mobile-fixes.css"><link rel="stylesheet" href="page.css"></head><body><a class="skip-link" href="#main">Skip to content</a><div class="announcement">Offices in Catford and New Addington, Croydon <span>•</span> Telephone hours: weekdays 9am–5pm</div><header class="site-header">{logo()}<button class="menu-toggle" aria-expanded="false" aria-controls="main-nav"><span></span><span></span><span></span><span class="sr-only">Menu</span></button><nav id="main-nav" class="main-nav" aria-label="Main navigation"><a href="all-services.html">All services</a><a href="printing-quotation.html">Online quote</a><a href="menu-downloads.html">Helpful guides</a><a href="internet-printers.html">Contact us</a><a class="nav-upload" href="https://www.catfordprint.co.uk/sendfile">Upload your file</a></nav></header><main id="main"><section class="page-hero"><div class="breadcrumbs"><a href="index.html">Home</a><span>/</span><span>{html.escape(kicker)}</span></div><p class="eyebrow">{html.escape(kicker)}</p><h1>{html.escape(title)}</h1><p>{html.escape(desc)}</p></section>{content}</main><footer>{logo()}<p>Print &amp; Mail. Franking &amp; Posting Service.</p><div><a href="privacy.html">Privacy</a><a href="terms.html">Terms &amp; conditions</a></div><small class="page-footer-credit">© <span data-year></span> Catford Print Centre · Website made by <a href="https://beeseen.uk" target="_blank" rel="noopener noreferrer">BeeSeen.uk</a></small></footer><script src="site-pages.js"></script></body></html>'''
+    return f'''<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="{html.escape(desc[:155],quote=True)}"><title>{html.escape(title)} | Catford Print Centre</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="mobile-fixes.css"><link rel="stylesheet" href="page.css"><link rel="stylesheet" href="calculator.css"></head><body><a class="skip-link" href="#main">Skip to content</a><div class="announcement">Offices in Catford and New Addington, Croydon <span>•</span> Telephone hours: weekdays 9am–5pm</div><header class="site-header">{logo()}<button class="menu-toggle" aria-expanded="false" aria-controls="main-nav"><span></span><span></span><span></span><span class="sr-only">Menu</span></button><nav id="main-nav" class="main-nav" aria-label="Main navigation"><a href="all-services.html">All services</a><a href="printing-quotation.html">Online quote</a><a href="menu-downloads.html">Helpful guides</a><a href="internet-printers.html">Contact us</a><a class="nav-upload" href="https://www.catfordprint.co.uk/sendfile">Upload your file</a></nav></header><main id="main"><section class="page-hero"><div class="breadcrumbs"><a href="index.html">Home</a><span>/</span><span>{html.escape(kicker)}</span></div><p class="eyebrow">{html.escape(kicker)}</p><h1>{html.escape(title)}</h1><p>{html.escape(desc)}</p></section>{content}</main><footer>{logo()}<p>Print &amp; Mail. Franking &amp; Posting Service.</p><div><a href="privacy.html">Privacy</a><a href="terms.html">Terms &amp; conditions</a></div><small class="page-footer-credit">© <span data-year></span> Catford Print Centre · Website made by <a href="https://beeseen.uk" target="_blank" rel="noopener noreferrer">BeeSeen.uk</a></small></footer><script src="site-pages.js"></script></body></html>'''
 
 def create_page(name):
     raw=fetch(name); soup=BeautifulSoup(raw,"html.parser")
     title=clean_text(soup.title.get_text(" ",strip=True) if soup.title else Path(name).stem.replace("-"," ").title())
     if title in ("Untitled Document","Catford Print Centre"): title=Path(name).stem.replace("-"," ").replace("menu ","").title()
-    tables=extract_tables(soup); options=extract_options(soup); embedded=embedded_form_fields(soup); lines=extract_lines(soup,title)
+    tables=extract_tables(soup); options=extract_options(soup); embedded=embedded_form_fields(soup); calculators=embedded_calculators(soup); lines=extract_lines(soup,title)
     headings=[clean_text(h.get_text(" ",strip=True)) for h in soup.find_all(["h1","h2","h3"])]
     lead=next((x for x in lines if len(x)>55),f"Full details, options and ordering information for {title}.")
     copy=[]
@@ -128,6 +136,10 @@ def create_page(name):
             else: control=f'<input id="{field_id}" type="{kind}" value="{html.escape(value,quote=True)}">'
             fields.append(f'<label for="{field_id}">{html.escape(label)}{control}</label>')
         option_html=f'<section class="content-section"><h2>Available options</h2><div class="option-panel"><div class="option-grid">{"".join(fields)}</div></div></section>'
+    calculator_html=""
+    if calculators:
+        frames="".join(f'<iframe class="legacy-calculator" src="{html.escape(src,quote=True)}" title="{html.escape(title,quote=True)} live price calculator" loading="lazy"></iframe>' for src in calculators)
+        calculator_html=f'<section class="content-section"><h2>Live price calculator</h2><p>Use the original Catford Print pricing engine for an instant price and any available spine estimate.</p><div class="calculator-frame">{frames}</div></section>'
     table_html=""
     if tables:
         rendered=[]
@@ -138,7 +150,7 @@ def create_page(name):
                 row=row+[""]*(width-len(row)); body.append("<tr>"+"".join(f"<td>{html.escape(cell)}</td>" for cell in row)+"</tr>")
             rendered.append('<div class="table-wrap"><table class="data-table">'+''.join(body)+'</table></div>')
         table_html=f'<section class="content-section"><h2>Prices, sizes and specifications</h2>{"".join(rendered)}</section>'
-    content=f'''<div class="page-shell"><article class="page-content">{option_html}<section class="content-section"><h2>Full details</h2><div class="legacy-copy">{"".join(copy)}</div></section>{table_html}</article><aside class="page-sidebar"><div class="sidebar-card"><h2>Ready to print?</h2><p>Send us your requirements for a firm price, or call for helpful advice.</p><a class="button primary" href="mailto:web@catfordprint.co.uk?subject={html.escape(title.replace(' ','%20'))}%20enquiry">Email us</a></div><div class="sidebar-card cyan"><h2>Send your artwork</h2><p>Upload files up to 50MB using our existing secure upload service.</p><a class="button ghost" href="https://www.catfordprint.co.uk/sendfile">Upload your file</a></div><div class="related-list"><h2>Explore the range</h2><a href="book-printing.html">Books <span>→</span></a><a href="booklet-printers.html">Booklets <span>→</span></a><a href="leaflets-uk.html">Leaflets <span>→</span></a><a href="stationery.html">Business print <span>→</span></a><a href="all-services.html">All services <span>→</span></a></div></aside></div>'''
+    content=f'''<div class="page-shell"><article class="page-content">{calculator_html}{option_html}<section class="content-section"><h2>Full details</h2><div class="legacy-copy">{"".join(copy)}</div></section>{table_html}</article><aside class="page-sidebar"><div class="sidebar-card"><h2>Ready to print?</h2><p>Send us your requirements for a firm price, or call for helpful advice.</p><a class="button primary" href="mailto:web@catfordprint.co.uk?subject={html.escape(title.replace(' ','%20'))}%20enquiry">Email us</a></div><div class="sidebar-card cyan"><h2>Send your artwork</h2><p>Upload files up to 50MB using our existing secure upload service.</p><a class="button ghost" href="https://www.catfordprint.co.uk/sendfile">Upload your file</a></div><div class="related-list"><h2>Explore the range</h2><a href="book-printing.html">Books <span>→</span></a><a href="booklet-printers.html">Booklets <span>→</span></a><a href="leaflets-uk.html">Leaflets <span>→</span></a><a href="stationery.html">Business print <span>→</span></a><a href="all-services.html">All services <span>→</span></a></div></aside></div>'''
     (OUT/name).write_text(shell(title,page_group(name),content,lead),encoding="utf-8")
     return title,lead
 
