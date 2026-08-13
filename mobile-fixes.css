@@ -1,0 +1,5 @@
+html, body { overflow-x: hidden; }
+
+@media (max-width: 600px) {
+  .hero h1 { font-size: 43px; }
+}
